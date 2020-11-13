@@ -8,6 +8,7 @@ Currently they are compiled using the z80asm program from SLR Systems. This can 
 Asuming you have copied the z80asm.com file and the *.z80 program you want to test onto the z80mbc2 drive f: you would compile the programs with:
 
 f:
+
 z80asm led
 
 (this would be for the file led.z80, and flashes the user led)
