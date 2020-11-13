@@ -1,0 +1,91 @@
+;
+;Test the user LED and user Key
+;
+BDOS    equ     05h		;cp/m BDOS entry point
+USRLED	equ	0		;opcode for User LED control
+USRKEY	equ	80h		;opcode for User Switch control
+DPORT	equ	0		;DATA port i/o 
+CPORT	equ	1		;Command port output
+;
+        org     0100h
+;
+        ld	(estack),sp	;keep existing info for return to cp/m
+        ld      sp,stack
+;
+        ld      hl,msg		;hello message
+	call	_puts
+	
+lp:	ld	a,1		;turn on = 1
+	call	led
+	call	delay		;delay and wait for key(s)
+	jr	nz,finish	;non zero means key/switch pressed
+	xor	a		;a=0
+	call	led
+	call	delay		;delay or wait for key/switch
+	jr	z,lp		;if zero, no key/switch, go again
+;
+finish:	xor	a		;key or switch was pressed, so done
+	call	led
+	ld	hl,bye		;say bye
+	call	_puts		;display msg HL=
+	ld	sp,(estack)	;original stack
+	ret			;return to cp/m
+;
+led:	push	af		;save led value 0 or 1
+	ld	a,USRLED
+	out	(CPORT),a	;optcode sent
+	pop	af
+	out	(DPORT),a	;data sent
+	ret
+;	
+;Delay loop that check key pressed on terminal or user key 
+delay:	ld	bc,00e00h	;aprox 1/2s 8mhz CPU, pure guess work
+loop2:	dec	bc		;count the loop
+	push	bc		;save regs when calling BDOS
+	push	de
+	ld	c,6		;BDOS raw i/o check if key pressed
+	ld	e,0ffh
+	call	BDOS
+	pop	de		;get our values back from stack
+	pop	bc
+	or	a		;check if key pressed on terminal
+	ret	nz		;yes return (also keeps nz flag set)
+	ld	a,USRKEY	;Now check user key
+	out	(CPORT),a	;command port
+	in	a,(DPORT)	;read key
+	and	a,1		;only interested in bit 0
+	ret	nz		;return if userkey pressed
+	ld	a,b		;or is bc=0
+	or	c
+	jr	nz,loop2	;not finished counting, go again
+	xor	a		;set the z flag to 0
+	ret			;return no key pressed, end of delay
+	
+;	
+_puts:	push	bc		;save our regs ready for bdos calls
+	push	de
+nxt:	ld	a,(hl)		;get char
+	or	a		;test if it's 0, end of msg
+	jr	z,done		;yes so done
+	ld      e,a		; set up call to BDOS to print a char
+        ld      c,2
+        push    hl		;save text pointer
+        call    BDOS		;print it
+        pop     hl
+        inc     hl		;next char
+        jr      nxt		;keep going
+done:	pop	de		;finished restore regs
+	pop	bc
+	ret			;and return
+;
+msg    	db      'User LED test, any key to exit'
+	db	0ah,0dh,0
+bye	db	'Exit'
+	db	0ah,0dh,0
+estack	dw	0
+	ds	128
+stack: 	ds	$
+;
+	end
+
+
