@@ -1,0 +1,11 @@
+;
+BDOS	equ	05h
+;
+	org	0100h
+	ld	de,msg
+	ld	c,9
+	call	BDOS
+	halt
+;
+msg	db	'This tests the halt LED, you need to reset to exit$'	
+;	end
