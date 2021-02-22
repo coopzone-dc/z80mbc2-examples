@@ -1,0 +1,103 @@
+;
+;Read RTC and Temp, print on console
+;
+               .z80
+               ASEG
+
+BDOS    equ     05h		;cp/m BDOS entry point
+TMDT    equ     132             ;Time/Date optcode
+DPORT	equ	0		;DATA port i/o 
+CPORT	equ	1		;Command port output
+;
+        org     0100h
+;
+        ld	(oldSP),sp	;keep existing info for return to cp/m
+        ld      sp,stackend
+;
+        ld     a,TMDT           ;send time/date optcode
+	out    CPORT,a
+        in     a,DPORT          ;get seconds
+        ld     hl,sec           ;save it here
+        call   savit
+        in     a,DPORT          ;get mins
+        ld     hl,min           ;save it here
+        call   savit
+        in     a,DPORT          ;get hours
+        ld     hl,hours           ;save it here
+        call   savit
+        in     a,DPORT          ;get day
+        ld     hl,day           ;save it here
+        call   savit
+        in     a,DPORT          ;get month
+        ld     hl,month         ;save it here
+        call   savit
+        in     a,DPORT          ;get year
+        ld     hl,year          ;save it here
+        call   savit
+        in     a,DPORT          ;get temp
+        ld     hl,temp          ;save it here
+	cp     128		;is it negative
+	jp     m,tempok
+	cpl
+	inc	a
+tempok:
+        call   savit
+;all daya now saved in the string
+	ld	hl,str		;print the results
+	call	puts
+exit:
+	ld	sp,(oldSP)	;get the original stack
+	ret			;back to ccp without wboot
+;
+;	
+puts:	push	bc		;save our regs ready for bdos calls
+	push	de
+nxt:	ld	a,(hl)		;get char
+	or	a		;test if it's 0, end of msg
+	jr	z,done		;yes so done
+	ld      e,a		; set up call to BDOS to print a char
+        ld      c,2
+        push    hl		;save text pointer
+        call    BDOS		;print it
+        pop     hl
+        inc     hl		;next char
+        jr      nxt		;keep going
+done:	pop	de		;finished restore regs
+	pop	bc
+	ret			;and return
+;
+savit:
+	or	a		;clear the carry flag
+	ld	b,-1+'0'	;b=ascii 0  with -1 offset
+savnxt:	sbc	a,10		;count the 10's
+	inc	b		;count the unit 10's
+	jr	nc,savnxt	;round again
+	add	a,10+'0'	;units +'0'0
+	ld	(hl),b
+	inc	hl
+	ld	(hl),a
+	ret
+;	
+str	db	'Current time: '
+hours	db	'hh'
+	db	':'
+min	db	'mm'
+	db	':'
+sec	db	'ss'
+	db	' '
+day	db	'dd'
+	db	'/'
+month	db	'mm'
+	db	'/'
+year	db	'yy'
+	db	0ah,0dh
+	db	'Temperature:  '
+temp	db	'xx'
+	db	'C'
+	db	0ah,0dh,0
+oldSP	dw	0
+	ds	64
+stackend:	equ	$
+;	
+               END
+
